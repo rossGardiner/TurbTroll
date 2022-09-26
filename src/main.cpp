@@ -1,20 +1,28 @@
 #include <Arduino.h>
 #include <Eventually.h>
-#define LED 13  
+
+#define LED_PIN 13  
+#define ADC_PIN A0
+#define SAMPLE_INTERVAL_MS 1000
+
+#include "AdcHandler.h"
+#include "DspEngine.h"
 
 //global variables
 EvtManager manager;
-int state = 0;
+AdcHandler adcHandler(ADC_PIN);
+DspEngine dspEngine(1.0/(SAMPLE_INTERVAL_MS));
 
-bool blink_handler(){
-  state = !state; // Switch light states
-  digitalWrite(LED, state); // Display the state
-  return false; // Allow the event chain to continue
+void pullThrough(){
+  float freq = dspEngine.GetFrequency();
 }
 
 void setup() {
-  pinMode(LED, OUTPUT);
-  manager.addListener(new EvtTimeListener(1000, true, (EvtAction)blink_handler));
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(ADC_PIN, INPUT);
+
+  dspEngine.RegisterCallback(&adcHandler);
+  manager.addListener(new EvtTimeListener(SAMPLE_INTERVAL_MS, true, (EvtAction)pullThrough));
 }
 
 USE_EVENTUALLY_LOOP(manager)
