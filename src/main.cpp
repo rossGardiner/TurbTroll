@@ -1,15 +1,20 @@
 #include <Arduino.h>
+#include <Eventually.h>
 #define LED 13  
+
+//global variables
+EvtManager manager;
+int state = 0;
+
+bool blink_handler(){
+  state = !state; // Switch light states
+  digitalWrite(LED, state); // Display the state
+  return false; // Allow the event chain to continue
+}
 
 void setup() {
   pinMode(LED, OUTPUT);
-  // put your setup code here, to run once:
+  manager.addListener(new EvtTimeListener(1000, true, (EvtAction)blink_handler));
 }
 
-void loop() {
-  digitalWrite(LED, HIGH);
-  delay(1000);
-  digitalWrite(LED, LOW);
-  delay(1000);
-  // put your main code here, to run repeatedly:
-}
+USE_EVENTUALLY_LOOP(manager)
