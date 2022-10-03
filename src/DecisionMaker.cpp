@@ -50,5 +50,10 @@ float DecisionMaker::GetPWMAdjustment(){
                 internalState = DecisionState::RAMP_DOWN;
             }
         default:
+            //do nothing, adjust on next cycle!
+            return 0.0f;
             break;
+    }
+    //extra return to shut my compiler up!
+    return 0.0f;
 }

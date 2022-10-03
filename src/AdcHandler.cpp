@@ -8,6 +8,7 @@ AdcHandler::AdcHandler(): AdcHandler(A0) {}
 
 AdcHandler::AdcHandler(int _adcPin){
     adcPin = _adcPin;
+    pinMode(adcPin, INPUT);
     debug("Pin: %d\n", adcPin);
     nr_steps = pow(2, 10);
 }

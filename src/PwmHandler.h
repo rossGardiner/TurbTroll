@@ -11,6 +11,7 @@ class PWMHander {
         float UpdateDutyCycle();
 
     protected:
+        int pinNo = 12;
         DecisionMaker* callback;
         float dutyCycle = 0.0f;
 };
