@@ -5,14 +5,15 @@
 
 class AdcHandler {
     public:
-        AdcHandler();
         AdcHandler(int _adcPin);
-        float GetSample();
+        AdcHandler();
+        
+        virtual float GetSample();
     
     private:
         int midpoint;
         int adcPin;
-        int resolution;
+        int nr_steps;
         const float logic_level_volts = 5.0;
 };
 

@@ -9,10 +9,10 @@ class DspEngine {
     public:
         DspEngine(float _fs_hz);
         void RegisterCallback(AdcHandler *_callback);
+        float GetDCOffset();
         float GetFrequency();
 
     protected:
-        //float GetDCOffset();
         float fs_hz;
         AdcHandler *callback;
         CircularBuffer<float, BUFFER_SZ> buffer;

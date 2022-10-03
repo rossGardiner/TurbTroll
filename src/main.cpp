@@ -3,8 +3,9 @@
 
 #define LED_PIN 13  
 #define ADC_PIN A0
-#define SAMPLE_INTERVAL_MS 1000
+#define SAMPLE_INTERVAL_MS 10
 
+#include "DebugMonitor.h"
 #include "AdcHandler.h"
 #include "DspEngine.h"
 
@@ -15,9 +16,11 @@ DspEngine dspEngine(1.0/(SAMPLE_INTERVAL_MS));
 
 void pullThrough(){
   float freq = dspEngine.GetFrequency();
+  debug("Freq detected: %f\n", freq);
 }
 
 void setup() {
+  Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
   pinMode(ADC_PIN, INPUT);
 
@@ -26,3 +29,4 @@ void setup() {
 }
 
 USE_EVENTUALLY_LOOP(manager)
+
