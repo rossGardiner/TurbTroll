@@ -10,7 +10,7 @@ class DspEngine {
         DspEngine(float _fs_hz);
         void RegisterCallback(AdcHandler *_callback);
         float GetDCOffset();
-        float GetFrequency();
+        virtual float GetFrequency();
 
     protected:
         float fs_hz;

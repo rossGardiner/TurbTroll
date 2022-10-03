@@ -12,6 +12,21 @@ void DecisionMaker::RegisterCallback(DspEngine* _callback){
     dspCallback = _callback;
 }
 
+float DecisionMaker::doInitialRamp(){
+    //turn the load off, -1.0 (-100%) is the signal for this
+    return -1.0f;
+}
+
+float DecisionMaker::doRampUp(float rpm){
+    //decrease duty cycle -- try to reduce turbine speed
+    return -1.0 * stepSize;
+}
+
+float DecisionMaker::doRampDowm(float rpm){
+    //increase duty cycle -- try to reduce turbine speed
+    return 1.0 * stepSize;
+}
+
 float DecisionMaker::GetPWMAdjustment(){
     /*
     Starting up from low speed, the controller would not put anything into the heater until the upper target speed is achieved
@@ -22,38 +37,41 @@ float DecisionMaker::GetPWMAdjustment(){
 
     //current speed - hz, times seconds in a minate
     float currentRpm = dspCallback->GetFrequency() * 60.0 * (2.0 / nrPoles);
-    switch(internalState) {
-        case DecisionState::IDLE:
-            internalState = DecisionState::INITIAL_RAMP;
-        case DecisionState::INITIAL_RAMP:
-            if(currentRpm >= maxTargetRpm){
-                internalState = DecisionState::RAMP_DOWN;
-            }
-            else{
-                //turn the load off, -1.0 (-100%) is the signal for this
-                return -1.0f;
-            }
-        case DecisionState::RAMP_DOWN:
-            if (currentRpm >= minTargetRpm){
-                //increase duty cycle -- try to reduce turbine speed
-                return 1.0 * stepSize;
-            }
-            else {
-                internalState = DecisionState::RAMP_UP;
-            }
-        case DecisionState::RAMP_UP:
-            if (currentRpm <= maxTargetRpm){
-                //decrease duty cycle -- try to increase turbine speed
-                return -1.0 * stepSize;
-            }
-            else{
-                internalState = DecisionState::RAMP_DOWN;
-            }
-        default:
-            //do nothing, adjust on next cycle!
-            return 0.0f;
-            break;
+    if(internalState == DecisionState::INITIAL_RAMP) {
+        if(currentRpm >= maxTargetRpm){
+            internalState = DecisionState::RAMP_DOWN;
+        }
+        else{
+            return doInitialRamp();
+        }
     }
-    //extra return to shut my compiler up!
+    if (internalState == DecisionState::RAMP_DOWN){
+        if (currentRpm >= minTargetRpm){
+            return doRampDowm(currentRpm);
+        }
+        else if (currentRpm <= stationaryBoundaryRpm){
+            internalState = DecisionState::INITIAL_RAMP;
+            return doInitialRamp();
+        }
+        else {
+            internalState = DecisionState::RAMP_UP;
+            return doRampUp(currentRpm);
+        }
+    }
+      
+    if (internalState == DecisionState::RAMP_UP){
+        if (currentRpm <= stationaryBoundaryRpm){
+            internalState = DecisionState::INITIAL_RAMP;
+            return doInitialRamp();
+        }
+        else if (currentRpm <= maxTargetRpm){
+            return doRampUp(currentRpm);
+        }
+        else{
+            internalState = DecisionState::RAMP_DOWN;
+            return doRampDowm(currentRpm);
+        }
+    }
+    //do nothing, default case
     return 0.0f;
 }
