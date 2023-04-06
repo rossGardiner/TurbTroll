@@ -1,4 +1,4 @@
-#define DEBUG 1
+#include "Config.h"
 
 #if DEBUG == 1
 #include <LibPrintf.h>

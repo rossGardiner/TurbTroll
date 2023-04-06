@@ -4,29 +4,31 @@
 #include "DspEngine.h"
 
 enum class DecisionState {
-	INITIAL_RAMP,
-	RAMP_DOWN,
-	RAMP_UP
+	FREESPIN,
+	SPEED_UP,
+	SPEED_DOWN
 };
 
 class DecisionMaker {
     public:
-        DecisionMaker(int _nrPoles, float _stationaryBoundaryRpm, float _minRpm, float _maxRpm, float _stepSize);
+        DecisionMaker(float _stepSize=0.01);
         void RegisterCallback(DspEngine* _callback);
+        void RegisterStatePtr(DecisionState* _state);
         virtual float GetPWMAdjustment();
-        protected:
-        float doInitialRamp();
-        float doRampDowm(float rpm);
-        float doRampUp(float rpm);
+        float rpmToHz(float rpm);
+        DecisionState speedStatus(float freq);
+
 
     protected:
         DspEngine* dspCallback;
-        float minTargetRpm = 0.0f;
-        float maxTargetRpm = 0.0f;
-        float stationaryBoundaryRpm = 0.0f;
-        float stepSize = 0.0f;
-        int nrPoles = 0;
-        DecisionState internalState = DecisionState::INITIAL_RAMP;
+        float targetHz;
+        float minTargetHz;
+        float maxTargetHz;
+        float stepSize;
+        int nrPoles;
+        int freqDivision;
+        DecisionState internalState = DecisionState::FREESPIN;
+        DecisionState* statePtr;
 };
 
 #endif

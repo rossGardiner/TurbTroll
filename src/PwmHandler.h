@@ -4,16 +4,19 @@
 
 #include "DecisionMaker.h"
 
-class PWMHander {
+class PWMHandler {
     public:
-        PWMHander(int pwmPin=12);
+        PWMHandler(int pwmPin=12);
         void RegisterCallback(DecisionMaker* _callback);
+        void RegisterDutyPtr(float* _dutyPtr);
         float UpdateDutyCycle();
 
+
     protected:
-        int pinNo = 12;
         DecisionMaker* callback;
         float dutyCycle = 0.0f;
+        int pinNo = 12;
+        float* dutyPtr;
 };
 
 #endif

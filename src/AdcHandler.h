@@ -8,7 +8,7 @@ class AdcHandler {
         AdcHandler(int _adcPin);
         AdcHandler();
         
-        virtual float GetSample();
+        virtual int GetSample();
     
     private:
         int midpoint;

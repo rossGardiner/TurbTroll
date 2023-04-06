@@ -1,77 +1,102 @@
 #include "DecisionMaker.h"
+#include "DebugMonitor.h"
+#include "Config.h"
 
 
-DecisionMaker::DecisionMaker(int _nrPoles, float _stationaryBoundaryRpm, float _minTargetRpm, float _maxTargetRpm, float _stepSize){
-    nrPoles = _nrPoles;
-    stationaryBoundaryRpm = _stationaryBoundaryRpm;
-    minTargetRpm = _minTargetRpm; maxTargetRpm = _maxTargetRpm;
+DecisionMaker::DecisionMaker(float _stepSize){
+    nrPoles = NR_POLES;
+    freqDivision = FREQ_DIVISION;
+    minTargetHz = rpmToHz(MIN_RPM); 
+    maxTargetHz = rpmToHz(MAX_RPM);
+    targetHz = rpmToHz(TARGET_RPM);
     stepSize = _stepSize;
+
 }
 
-void DecisionMaker::RegisterCallback(DspEngine* _callback){
+void DecisionMaker::RegisterCallback(DspEngine*  _callback){
     dspCallback = _callback;
 }
 
-float DecisionMaker::doInitialRamp(){
-    //turn the load off, -1.0 (-100%) is the signal for this
-    return -1.0f;
+void DecisionMaker::RegisterStatePtr(DecisionState* _state){
+    statePtr = _state;
 }
 
-float DecisionMaker::doRampUp(float rpm){
-    //decrease duty cycle -- try to reduce turbine speed
-    return -1.0 * stepSize;
+
+DecisionState DecisionMaker::speedStatus(float freq){
+    if (freq < minTargetHz || freq >= maxTargetHz){
+        return DecisionState::FREESPIN;
+    }
+    if (freq < targetHz){
+        return DecisionState::SPEED_UP;
+    }
+    else{
+        return DecisionState::SPEED_DOWN;
+    }
 }
 
-float DecisionMaker::doRampDowm(float rpm){
-    //increase duty cycle -- try to reduce turbine speed
-    return 1.0 * stepSize;
+float DecisionMaker::rpmToHz(float rpm){
+    return rpm * (1.0/60) * (nrPoles/2) * freqDivision;
 }
 
 float DecisionMaker::GetPWMAdjustment(){
-    /*
-    Starting up from low speed, the controller would not put anything into the heater until the upper target speed is achieved
-    then slowly increase the load until the lower target speed. 
-    Lower than the lower target speed it backs off the load, 
-    higher than the upper target speed it increases the load.
-    */
-
-    //current speed - hz, times seconds in a minate
-    float currentRpm = dspCallback->GetFrequency() * 60.0 * (2.0 / nrPoles);
-    if(internalState == DecisionState::INITIAL_RAMP) {
-        if(currentRpm >= maxTargetRpm){
-            internalState = DecisionState::RAMP_DOWN;
-        }
-        else{
-            return doInitialRamp();
-        }
+    float f = dspCallback->GetFrequency();
+    internalState = speedStatus(f);
+    if (internalState == DecisionState::SPEED_UP){
+        return -stepSize;
     }
-    if (internalState == DecisionState::RAMP_DOWN){
-        if (currentRpm >= minTargetRpm){
-            return doRampDowm(currentRpm);
-        }
-        else if (currentRpm <= stationaryBoundaryRpm){
-            internalState = DecisionState::INITIAL_RAMP;
-            return doInitialRamp();
-        }
-        else {
-            internalState = DecisionState::RAMP_UP;
-            return doRampUp(currentRpm);
-        }
+    else if (internalState == DecisionState::SPEED_DOWN){
+        return stepSize;
     }
-      
-    if (internalState == DecisionState::RAMP_UP){
-        if (currentRpm <= stationaryBoundaryRpm){
-            internalState = DecisionState::INITIAL_RAMP;
-            return doInitialRamp();
-        }
-        else if (currentRpm <= maxTargetRpm){
-            return doRampUp(currentRpm);
-        }
-        else{
-            internalState = DecisionState::RAMP_DOWN;
-            return doRampDowm(currentRpm);
-        }
+    else{
+        return - __FLT_MAX__;
     }
-    //do nothing, default case
-    return 0.0f;
 }
+//float DecisionMaker::GetPWMAdjustment(){
+       
+//     /*
+//     Starting up from low speed, the controller would not put anything into the heater until the upper target speed is achieved
+//     then slowly increase the load until the lower target speed. 
+//     Lower than the lower target speed it backs off the load, 
+//     higher than the upper target speed it increases the load.
+//     */
+
+//     //current speed - hz, times seconds in a minate
+//     float freq = dspCallback->GetFrequency();
+//     if(internalState == DecisionState::INITIAL_RAMP) {
+//         if(freq >= maxTargetHz){
+//             internalState = DecisionState::RAMP_DOWN;
+//         }
+//         else{
+//             return doInitialRamp();
+//         }
+//     }
+//     if (internalState == DecisionState::RAMP_DOWN){
+//         if (freq >= minTargetHz){
+//             return doRampDowm(freq);
+//         }
+//         else if (freq <= stationaryBoundaryHz){
+//             internalState = DecisionState::INITIAL_RAMP;
+//             return doInitialRamp();
+//         }
+//         else {
+//             internalState = DecisionState::RAMP_UP;
+//             return doRampUp(freq);
+//         }
+//     }
+      
+//     if (internalState == DecisionState::RAMP_UP){
+//         if (freq <= stationaryBoundaryHz){
+//             internalState = DecisionState::INITIAL_RAMP;
+//             return doInitialRamp();
+//         }
+//         else if (freq <= maxTargetHz){
+//             return doRampUp(freq);
+//         }
+//         else{
+//             internalState = DecisionState::RAMP_DOWN;
+//             return doRampDowm(freq);
+//         }
+//     }
+//     //do nothing, default case
+//    return 0.0f;
+//}

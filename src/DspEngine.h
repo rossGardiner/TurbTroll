@@ -2,20 +2,25 @@
 #define TURBTROLL_DSPENGINE_H
 
 #include "AdcHandler.h"
-#include <CircularBuffer.h>
-#define BUFFER_SZ 300
+
+#include "Config.h"
+
+#include "microsmooth.h"
 
 class DspEngine {
     public:
         DspEngine(float _fs_hz);
         void RegisterCallback(AdcHandler *_callback);
-        float GetDCOffset();
         virtual float GetFrequency();
-
+        void RegisterFreqPtr(float* _freqPtr);
     protected:
-        float fs_hz;
+        float last_result; 
+        unsigned long internal_count;
+        float sample_interval_s;
         AdcHandler *callback;
-        CircularBuffer<float, BUFFER_SZ> buffer;
+        int* buff =  (int*)malloc(FFT_BUFFER_SZ * sizeof(int));
+        uint16_t *history = ms_init(SMA);
+        float* freq_ptr; 
 };
 
 #endif
