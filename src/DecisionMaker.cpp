@@ -1,21 +1,26 @@
 #include "DecisionMaker.h"
 #include "DebugMonitor.h"
+
 #include "Config.h"
+#include "DebugMonitor.h"
 
-
-DecisionMaker::DecisionMaker(float _stepSize){
+DecisionMaker::DecisionMaker(int _delay_ms){
     nrPoles = NR_POLES;
     freqDivision = FREQ_DIVISION;
     minTargetHz = rpmToHz(MIN_RPM); 
+    fullModulationTargetHz = rpmToHz(FULL_MOD_RPM);
     maxTargetHz = rpmToHz(MAX_RPM);
-    targetHz = rpmToHz(TARGET_RPM);
-    stepSize = _stepSize;
+    delay_ms = _delay_ms;
+} 
 
+void DecisionMaker::RegisterFrequencyCallback(FreqInterruptHandler*  _callback){
+    frequencyCallback = _callback;
 }
 
-void DecisionMaker::RegisterCallback(DspEngine*  _callback){
-    dspCallback = _callback;
+void DecisionMaker::RegisterBrakeCallback(BrakeHandler* _callback){
+    brakeCallback = _callback;
 }
+
 
 void DecisionMaker::RegisterStatePtr(DecisionState* _state){
     statePtr = _state;
@@ -23,80 +28,44 @@ void DecisionMaker::RegisterStatePtr(DecisionState* _state){
 
 
 DecisionState DecisionMaker::speedStatus(float freq){
-    if (freq < minTargetHz || freq >= maxTargetHz){
+    if (freq < minTargetHz){
         return DecisionState::FREESPIN;
     }
-    if (freq < targetHz){
-        return DecisionState::SPEED_UP;
+    else if (freq < maxTargetHz){
+        return DecisionState::MODULATING;
     }
     else{
-        return DecisionState::SPEED_DOWN;
+        return DecisionState::BRAKE;
     }
 }
 
 float DecisionMaker::rpmToHz(float rpm){
     return rpm * (1.0/60) * (nrPoles/2) * freqDivision;
 }
-
-float DecisionMaker::GetPWMAdjustment(){
-    float f = dspCallback->GetFrequency();
-    internalState = speedStatus(f);
-    if (internalState == DecisionState::SPEED_UP){
-        return -stepSize;
-    }
-    else if (internalState == DecisionState::SPEED_DOWN){
-        return stepSize;
-    }
-    else{
-        return - __FLT_MAX__;
-    }
+float DecisionMaker::hzToRpm(float hz){
+    return 60.0 * hz / ((nrPoles/2) * freqDivision);
 }
-//float DecisionMaker::GetPWMAdjustment(){
-       
-//     /*
-//     Starting up from low speed, the controller would not put anything into the heater until the upper target speed is achieved
-//     then slowly increase the load until the lower target speed. 
-//     Lower than the lower target speed it backs off the load, 
-//     higher than the upper target speed it increases the load.
-//     */
 
-//     //current speed - hz, times seconds in a minate
-//     float freq = dspCallback->GetFrequency();
-//     if(internalState == DecisionState::INITIAL_RAMP) {
-//         if(freq >= maxTargetHz){
-//             internalState = DecisionState::RAMP_DOWN;
-//         }
-//         else{
-//             return doInitialRamp();
-//         }
-//     }
-//     if (internalState == DecisionState::RAMP_DOWN){
-//         if (freq >= minTargetHz){
-//             return doRampDowm(freq);
-//         }
-//         else if (freq <= stationaryBoundaryHz){
-//             internalState = DecisionState::INITIAL_RAMP;
-//             return doInitialRamp();
-//         }
-//         else {
-//             internalState = DecisionState::RAMP_UP;
-//             return doRampUp(freq);
-//         }
-//     }
-      
-//     if (internalState == DecisionState::RAMP_UP){
-//         if (freq <= stationaryBoundaryHz){
-//             internalState = DecisionState::INITIAL_RAMP;
-//             return doInitialRamp();
-//         }
-//         else if (freq <= maxTargetHz){
-//             return doRampUp(freq);
-//         }
-//         else{
-//             internalState = DecisionState::RAMP_DOWN;
-//             return doRampDowm(freq);
-//         }
-//     }
-//     //do nothing, default case
-//    return 0.0f;
-//}
+float DecisionMaker::mapfloat(float x, float in_min, float in_max, float out_min, float out_max){
+  return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+}
+
+long DecisionMaker::GetPWM(){
+    float frequency = frequencyCallback->GetFreq(delay_ms);
+    internalState = speedStatus(frequency);
+    *statePtr = internalState;
+    if (internalState == DecisionState::FREESPIN){
+        return 0;
+    }
+    else if (internalState == DecisionState::MODULATING){
+        return map(
+            constrain(frequency, 0.0, fullModulationTargetHz),
+            minTargetHz, 
+            fullModulationTargetHz, 
+            0, 255
+        );
+    }
+    else 
+        brakeCallback->BrakeHold(BRAKE_HOLD_MS);
+        return 255;
+}

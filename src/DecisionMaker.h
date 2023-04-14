@@ -1,32 +1,39 @@
 #ifndef TURBTROLL_DECISIONMAKER_H
 #define TURBTROLL_DECISIONMAKER_H
 
-#include "DspEngine.h"
+#include "FreqInterruptHandler.h"
+#include "BrakeHandler.h"
 
 enum class DecisionState {
 	FREESPIN,
-	SPEED_UP,
-	SPEED_DOWN
+	MODULATING,
+	BRAKE
 };
 
 class DecisionMaker {
     public:
-        DecisionMaker(float _stepSize=0.01);
-        void RegisterCallback(DspEngine* _callback);
+        DecisionMaker(int _delay_ms);
+        void RegisterFrequencyCallback(FreqInterruptHandler* _callback);
+        void RegisterBrakeCallback(BrakeHandler* _callback);
         void RegisterStatePtr(DecisionState* _state);
-        virtual float GetPWMAdjustment();
+        virtual long GetPWM();
         float rpmToHz(float rpm);
+        float hzToRpm(float hz);
         DecisionState speedStatus(float freq);
+        float mapfloat(float x, float in_min, float in_max, float out_min, float out_max);
+        float fullModulationTargetHz;
+        float minTargetHz;
+        float maxTargetHz;
 
 
     protected:
-        DspEngine* dspCallback;
-        float targetHz;
-        float minTargetHz;
-        float maxTargetHz;
+        FreqInterruptHandler* frequencyCallback;
+        BrakeHandler* brakeCallback;
+        
         float stepSize;
         int nrPoles;
         int freqDivision;
+        int delay_ms = 500;
         DecisionState internalState = DecisionState::FREESPIN;
         DecisionState* statePtr;
 };

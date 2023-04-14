@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "QuickFFT.h"
-#include "ApproxFFT.h"
 
 #include "DebugMonitor.h"
 

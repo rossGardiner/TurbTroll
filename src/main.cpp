@@ -1,117 +1,138 @@
 #include <Arduino.h>
-#include <Eventually.h>
+
+// Init timers for low freq pwm, for now this must be done in main.cpp
+#include "RPi_Pico_TimerInterrupt.h"
+#include "RP2040_Slow_PWM.h"
+#define HW_TIMER_INTERVAL_US 10000L
+RP2040_Timer ITimer(0);
+RP2040_Slow_PWM ISR_PWM;
+bool TimerHandler(struct repeating_timer *t)
+{ 
+  ISR_PWM.run();
+  return true;
+}
 
 #include "DebugMonitor.h"
-#include "AdcHandler.h"
-#include "DspEngine.h"
+#include "FreqInterruptHandler.h"
 #include "DecisionMaker.h"
 #include "PwmHandler.h"
+
 
 #include "Config.h"
 
 //global variables, processing pipeline
-EvtManager manager;
-AdcHandler adcHandler(ADC_PIN);
-DspEngine dspEngine(SAMPLE_INTERVAL_US / 1000000.0);
-DecisionMaker decisionMaker(0.001);
+FreqInterruptHandler freqInterruptHandler;
+DecisionMaker decisionMaker(UPDATE_INTERVAL_MS);
 PWMHandler pwmHandler(PWM_PIN);
+BrakeHandler brakeHandler(BRAKE_PIN);
 
 float global_frequency = -1.0;
-float global_pwm_duty = 0.0;
+float global_pwm_duty = 0;
 DecisionState global_decision_state = DecisionState::FREESPIN; 
 
-// void pullThrough(){
-//   //f = dspEngine.GetFrequency();
-//   //state = decisionMaker.speedStatus(f);
-//   pwmHandler.UpdateDutyCycle();
-// }
+void pullThrough(){
+    pwmHandler.UpdateDutyCycle();
+}
+int channelNum;
+void setup(){
+    pinMode(LED_BUILTIN, OUTPUT);
+      pinMode(LED_BUILTIN, OUTPUT);
+    //digitalWrite(LED_BUILTIN, HIGH);
+    Serial.begin();
+    freqInterruptHandler.Begin();
 
-// void setup() {
-//   pinMode(LED_BUILTIN, OUTPUT);
-//   digitalWrite(LED_BUILTIN, HIGH);
-//   dspEngine.RegisterCallback(&adcHandler);
-//   decisionMaker.RegisterCallback(&dspEngine);
-//   pwmHandler.RegisterCallback(&decisionMaker);
+    //register callbacks
+    decisionMaker.RegisterFrequencyCallback(&freqInterruptHandler);
+    decisionMaker.RegisterBrakeCallback(&brakeHandler);
+    pwmHandler.RegisterCallback(&decisionMaker);
 
-//   //set registers for value copies in global score
-//   dspEngine.RegisterFreqPtr(&global_frequency);
-//   decisionMaker.RegisterStatePtr(&global_decision_state);
-//   pwmHandler.RegisterDutyPtr(&global_pwm_duty);
+    //register debug pointers
+    freqInterruptHandler.RegisterFreqPtr(&global_frequency);
+    decisionMaker.RegisterStatePtr(&global_decision_state);
+    pwmHandler.RegisterDutyPtr(&global_pwm_duty);
 
-// }
+    //pwm config
+    ITimer.attachInterruptInterval(HW_TIMER_INTERVAL_US, TimerHandler);
+    channelNum = ISR_PWM.setPWM(PWM_PIN, PWM_FREQ, (float)(global_pwm_duty));
+}
 
-// void loop(){
-//   unsigned long m1 = micros();
-//   pullThrough();
-//   unsigned long diff = micros() - m1;
-//   int d = 0;
-//   if (diff < SAMPLE_INTERVAL_US){
-//     d = SAMPLE_INTERVAL_US - diff;
-//   }
-//   delayMicroseconds(d);
-// }
+void loop(){
+    //pull through pipeline
+    pullThrough();
+    //update output pwm
+    ISR_PWM.modifyPWMChannel(channelNum, PWM_PIN, PWM_FREQ, (float)(global_pwm_duty));
+}
 
-// void setup1(){
-//   Serial.begin(115200);
-//   Serial.println("Starting...");
-// }
+void setup1(){
+    Serial.begin(115200);
+    printf("Starting...");
 
-// float freq_to_rpm(float freq){
-//   return 60 * freq / ((NR_POLES/2) * FREQ_DIVISION);
-// }
+}
 
-// void loop1(){
-//   delay(10);
-//   debug("f: %f rpm: %f \r", global_frequency, freq_to_rpm(global_frequency));
-// }
+float hzToRpm(float hz){
+    return 60.0 * hz / ((NR_POLES/2) * FREQ_DIVISION);
+}
+
+void loop1(){
+    delay(10);
+    printf("f: %f, rpm: %f, state: %d, duty: %f \n", global_frequency, hzToRpm(global_frequency), global_decision_state, global_pwm_duty);
+}
 
 
-//constant 30% pwm test
 
-// void setup(){
-//   pinMode(LED_BUILTIN, OUTPUT);
-//   pinMode(PWM_PIN, OUTPUT);
-//   digitalWrite(LED_BUILTIN, HIGH);
-//   analogWriteFreq(100);
-//   int asInt = 0.33 * 255;
-//   analogWrite(PWM_PIN, asInt); 
-//   //digitalWrite(PWM_PIN, HIGH);
- 
-// }
 
-// void loop(){
-//   // digitalWrite(PWM_PIN, HIGH);
-//   // delayMicroseconds(3333);
-//   // digitalWrite(PWM_PIN, LOW);
-//   // delayMicroseconds(6667);
-// }
 
-// int pin = 2; 
-// volatile unsigned int pulse; 
-// const int pulses_per_litre = 450; 
- 
-// void count_pulse() 
-// { 
-// pulse++; 
-// digitalWrite(LED_BUILTIN, pulse%2);
-// } 
 
-// void setup() 
-// { 
-// Serial.begin(115200); 
 
-// pinMode(INT_PIN, INPUT);
-// pinMode(LED_BUILTIN, OUTPUT);
-// attachInterrupt(INT_PIN, count_pulse, RISING); 
-// } 
- 
-// void loop() 
-// { 
-// pulse=0; 
-// delay(1000); 
-// noInterrupts(); 
-// Serial.print("Pulses per second: "); 
-// Serial.println(pulse); 
-// interrupts(); 
 
-// } 
+
+
+
+
+
+
+
+
+
+
+// /*********
+//   Rui Santos
+//   Complete project details at https://randomnerdtutorials.com  
+//   Based on the Dallas Temperature Library example
+// *********/
+
+// // #include "one_wire.h"
+
+// // #define SENSOR_DATA D17
+
+// // One_wire one_wire(SENSOR_DATA);
+// // rom_address_t address{};
+// // void printAddress(rom_address_t &deviceAddress);
+
+
+// // void setup() {
+// //     Serial.begin(115200);
+// //     //stdio_init_all();
+// //     one_wire.init();
+// // }
+
+// // void loop() {
+// //     one_wire.single_device_read_rom(address);
+// //     Serial.print("Address: ");
+// //     printAddress(address);
+// //     Serial.println();
+// //     one_wire.convert_temperature(address, true, false);
+// //     Serial.print("Temperature: ");
+// //     Serial.println(one_wire.temperature(address));
+// //     sleep_ms(1000);
+// // }
+
+// // void printAddress(rom_address_t &deviceAddress) {
+// //   for (uint8_t i = 0; i < 8; i++)
+// //   {
+// //     // zero pad the address if necessary
+// //     if (deviceAddress.rom[i] < 16) Serial.print("0");
+// //     Serial.print(deviceAddress.rom[i], HEX);
+// //   }
+// // }
+
