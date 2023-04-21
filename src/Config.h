@@ -8,7 +8,7 @@
 #define DEBUG 1 
 
 //device config
-#define ADC_PIN A0
+#define ADC_PIN A1
 #define INT_PIN D19
 #define SAMPLE_INTERVAL_US 1500
 #define FREQ_DIVISION 2 //pulse is half-rectified
@@ -25,7 +25,7 @@
 //min RPM, below this just free spin (disconnect load)
 #define MIN_RPM 100.0
 //RPM for full modulation
-#define FULL_MOD_RPM 600.0 
+#define FULL_MOD_RPM 300.0 
 //Absolute max RPM, beyond this, brake the turbine, software makes every effort not to exceed this speed limit.
 #define MAX_RPM 1000.0
 
