@@ -27,7 +27,7 @@
 //RPM for full modulation
 #define FULL_MOD_RPM 300.0 
 //Absolute max RPM, beyond this, brake the turbine, software makes every effort not to exceed this speed limit.
-#define MAX_RPM 350.0
+#define MAX_RPM 800.0
 
 //timings
 #define UPDATE_INTERVAL_MS 500
