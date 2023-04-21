@@ -40,10 +40,10 @@ DecisionState DecisionMaker::speedStatus(float freq){
 }
 
 float DecisionMaker::rpmToHz(float rpm){
-    return rpm * (1.0/60) * (nrPoles/2) * freqDivision;
+    return rpm * (1.0/60) * (nrPoles);
 }
 float DecisionMaker::hzToRpm(float hz){
-    return 60.0 * hz / ((nrPoles/2) * freqDivision);
+    return 60.0 * hz / (nrPoles);
 }
 
 float DecisionMaker::mapfloat(float x, float in_min, float in_max, float out_min, float out_max){
@@ -66,6 +66,5 @@ long DecisionMaker::GetPWM(){
         );
     }
     else 
-        brakeCallback->BrakeHold(BRAKE_HOLD_MS);
         return 255;
 }

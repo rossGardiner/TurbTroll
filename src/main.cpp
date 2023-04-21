@@ -28,7 +28,7 @@ bool TimerHandler(struct repeating_timer *t)
 FreqInterruptHandler freqInterruptHandler;
 DecisionMaker decisionMaker(UPDATE_INTERVAL_MS);
 PWMHandler pwmHandler(PWM_PIN);
-BrakeHandler brakeHandler(BRAKE_PIN);
+//BrakeHandler brakeHandler(BRAKE_PIN);
 
 float global_frequency = -1.0;
 float global_pwm_duty = 0;
@@ -40,14 +40,13 @@ void pullThrough(){
 int channelNum;
 void setup(){
     pinMode(LED_BUILTIN, OUTPUT);
-      pinMode(LED_BUILTIN, OUTPUT);
-    //digitalWrite(LED_BUILTIN, HIGH);
+    pinMode(BRAKE_PIN, OUTPUT);
     Serial.begin();
     freqInterruptHandler.Begin();
 
     //register callbacks
     decisionMaker.RegisterFrequencyCallback(&freqInterruptHandler);
-    decisionMaker.RegisterBrakeCallback(&brakeHandler);
+    //decisionMaker.RegisterBrakeCallback(&brakeHandler);
     pwmHandler.RegisterCallback(&decisionMaker);
 
     //register debug pointers
@@ -60,11 +59,27 @@ void setup(){
     channelNum = ISR_PWM.setPWM(PWM_PIN, PWM_FREQ, (float)(global_pwm_duty));
 }
 
+float hzToRpm(float hz){
+    return 60.0 * hz / (NR_POLES);
+}
+int brakeState = 0;
+long brakeTime = 0;
+long brake_elapsed = 0;
+
 void loop(){
     //pull through pipeline
     pullThrough();
     //update output pwm
     ISR_PWM.modifyPWMChannel(channelNum, PWM_PIN, PWM_FREQ, (float)(global_pwm_duty));
+    if((!brakeState) && (global_decision_state==DecisionState::BRAKE)){
+      brakeState = 1;
+      brakeTime = millis();
+    }
+    digitalWrite(BRAKE_PIN, brakeState);
+    if(brakeState){
+      brake_elapsed = millis() - brakeTime; 
+      brakeState = !(brake_elapsed > BRAKE_HOLD_MS);
+    }
 }
 
 void setup1(){
@@ -75,9 +90,7 @@ void setup1(){
 
 }
 
-float hzToRpm(float hz){
-    return 60.0 * hz / ((NR_POLES/2) * FREQ_DIVISION);
-}
+
 
 void loop1(){
     delay(10);
@@ -96,7 +109,9 @@ void LCDUpdate(){
   lcd.print(lcd_line);
   
   lcd.setCursor(0,1);
-  switch(global_decision_state){
+  DecisionState displayState = global_decision_state;
+  if(brakeState) displayState = DecisionState::BRAKE;
+  switch(displayState){
     case DecisionState::FREESPIN:
       sprintf(lcd_line, "State: FREESPIN");
       break;
